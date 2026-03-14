@@ -10,6 +10,7 @@
 
 ```bash
 git clone https://github.com/davidYichengWei/agentic-engineering-framework.git
+cd agentic-engineering-framework
 ```
 
 ### 2. 复制到 Agent 配置目录
@@ -18,19 +19,17 @@ git clone https://github.com/davidYichengWei/agentic-engineering-framework.git
 
 ```bash
 # Claude Code
-cp -r agents/ skills/ commands/ ~/.claude/
-
-# CodeBuddy
-cp -r agents/ skills/ commands/ .codebuddy/
+cp -R agents skills commands ~/.claude/
 
 # Codex CLI
-cp -r agents/ skills/ commands/ .codex/
+cp -R agents skills commands ~/.codex/
+
+# CodeBuddy
+cp -R agents skills commands ~/.codebuddy/
 
 # 其他支持类似 skill/agent 结构的 agent
-cp -r agents/ skills/ commands/ <your-agent-config-dir>/
+cp -R agents skills commands <your-agent-config-dir>/
 ```
-
-> **注意**：部分 agent 可能使用不同的机制（如项目级配置文件），请根据实际情况调整。
 
 ### 3. 验证
 
