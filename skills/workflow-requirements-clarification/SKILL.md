@@ -1,17 +1,48 @@
 ---
 name: workflow-requirements-clarification
-description: 通过苏格拉底式提问澄清需求，明确"要解决什么问题"，生成 spec.md 的前三章节（背景、目标、需求）。当用户提出新功能需求或需要梳理问题定义时使用。不涉及设计方案。
+description: 需求澄清。只负责明确"要解决什么问题"，生成 spec.md 的前三章节（背景、目标、需求）。禁止在本阶段讨论设计方案——设计是 workflow-system-design skill 的职责。
 ---
 
 # 需求澄清
 
 ## 核心定位
 
-**AI 调研代码背景，用户提供需求信息。** 能从 codebase 获取的信息 AI 必须自己调研，不问用户。
+**AI 负责调研代码背景，用户负责提供需求信息。**
 
-**苏格拉底式提问**：追问 Why（问题本质）、指出矛盾、揭示遗漏。
+### AI 职责划分
 
-**AI 生成内容的前置条件**：已完成代码调研 → 已充分追问 → 已加载相关规范。
+**AI 自己调研（读代码）**：
+- 现有实现是怎样的
+- 代码路径、数据流
+- 已有的接口和数据结构
+- 技术约束（如使用的框架）
+- 相关模块的职责
+
+**向用户询问**：
+- 为什么需要这个功能
+- 要解决什么问题
+- 具体要做哪些功能
+- 目标和成功标准
+- 非目标（不做什么）
+- 性能/兼容性等非功能需求
+
+**规则**：如果信息可以从 codebase 获取，**AI 必须自己调研**，不问用户。
+
+### 苏格拉底式提问
+
+向用户询问需求信息时，采用**苏格拉底式提问**——刨根问底，理解问题本质：
+
+| 技巧 | 说明 | 示例 |
+|------|------|------|
+| **追问 Why** | 不接受表面答案，追问到问题本质 | 用户："加个缓存" → AI："为什么需要缓存？慢到什么程度？目标是多少？" |
+| **指出矛盾** | 发现用户表述中的矛盾时，引导用户澄清 | 用户："要高并发，但不能改接口" → AI："异步化会改变接口语义，这两个目标是否冲突？" |
+| **揭示遗漏** | 引导用户思考未考虑的场景 | AI："你考虑过 X 失败的情况吗？" |
+
+### AI 生成内容的前置条件
+
+1. **AI 已完成代码调研**（理解现状，并向用户确认）
+2. **AI 已充分追问**（理解问题本质）
+3. **加载相关规范**（如 `bp-distributed-systems` 等）
 
 ## 触发条件
 
@@ -23,9 +54,28 @@ description: 通过苏格拉底式提问澄清需求，明确"要解决什么问
 
 ## 对话模式
 
-**角色**：AI 只提问和追问，**用户请求时**才生成内容。生成后必须询问用户意见。
+### AI 角色边界
 
-**每轮结构**：说明当前阶段 → 提一个开放式问题 → 等用户回答 → 评估（清晰→确认、模糊→追问、矛盾→指出、遗漏→引导）→ 确认后进入下一问题。
+| AI 应该做 | AI 不应该做 |
+|----------|------------|
+| 提问，追问 Why | 未经请求就给答案 |
+| 指出矛盾或遗漏 | 未追问清楚就生成内容 |
+| 质疑不清晰的表述 | 跳过追问直接给建议 |
+| **用户请求时**生成内容 | 生成后不询问用户意见 |
+
+### 每轮对话结构
+
+```
+1. 说明当前阶段和目标
+2. 提出一个开放式问题（让用户思考）
+3. 等待用户回答
+4. 评估用户回答：
+   - 清晰完整 → 复述确认，进入下一问题
+   - 模糊 → 追问具体含义
+   - 有矛盾 → 指出矛盾
+   - 有遗漏 → 引导思考
+5. 用户澄清后，再次确认
+```
 
 ---
 
@@ -40,24 +90,34 @@ todo_write(merge=false, todos=[
   {"id": "rc-3", "status": "pending", "content": "Step 3: 明确目标与边界"},
   {"id": "rc-4", "status": "pending", "content": "Step 4: 明确功能性需求"},
   {"id": "rc-5", "status": "pending", "content": "Step 5: 确认非功能性需求"},
-  {"id": "rc-6", "status": "pending", "content": "Step 6: 生成 spec.md（仅 1-3 章节）"}
+  {"id": "rc-6", "status": "pending", "content": "Step 6: 最终确认 spec.md"}
 ])
 ```
 
-### Step 0.5: 评估复杂度
+### Step 0.5: 评估复杂度并创建 spec
 
-| 复杂度 | 信号 | spec 详细程度 |
-|--------|------|--------------|
-| **简单** | bug fix、配置调整、单点修改 | 轻量版，1-2 轮对话 |
-| **中等** | 涉及多文件、单模块功能 | 标准版 |
-| **复杂** | 跨模块、新特性、架构变更 | 完整版 |
+| 复杂度 | 信号 | 处理方式 |
+|--------|------|----------|
+| **简单** | bug fix、配置调整、单点修改 | 不创建 spec，1-2 轮对话后直接进入 code-generation |
+| **中等** | 涉及多文件、单模块功能 | 创建 spec |
+| **复杂** | 跨模块、新特性、架构变更 | 创建 spec |
+
+**中等及以上**：立即创建目录并复制模板：
+
+```bash
+mkdir -p docs/design-docs/<module>/<feature>/
+cp skills/workflow-requirements-clarification/reference/spec_template.md \
+   docs/design-docs/<module>/<feature>/spec.md
+```
+
+路径规则：根据功能所属模块确定。文件名必须是 `spec.md`。
 
 ### Step 1: 代码调研（AI 自主完成）
 
 **目标**：理解现有实现，不询问用户
 
 **AI 操作**：
-1. 使用 `task` 调用 `code-explorer` 子代理探索相关代码
+1. 使用 `task` 调用 `codebase-researcher` 子代理深度调研相关代码（模块结构、接口、依赖关系、数据流）
 2. 识别相关模块、接口、数据结构
 3. 生成现状分析摘要
 
@@ -81,6 +141,8 @@ todo_write(merge=false, todos=[
 
 **结束条件**：用户确认理解正确。**必须等用户确认后才能进入 Step 2**。
 
+**实时更新 spec**：用户确认后，用 `replace_in_file` 填写 spec.md 的 `1.2 现状分析` 和 `1.3 主要使用场景`。
+
 ### Step 2: 澄清背景与问题
 
 **目标**：让用户说清楚"要解决什么问题"
@@ -96,6 +158,8 @@ todo_write(merge=false, todos=[
 - "没有这个功能，现在是怎么解决的？"
 
 **结束条件**：用户能清晰回答"要解决什么问题"，AI 复述确认无误。
+
+**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `1.1 问题描述`。
 
 ### Step 3: 明确目标与边界
 
@@ -117,6 +181,8 @@ todo_write(merge=false, todos=[
 
 **结束条件**：用户给出明确、可衡量的目标和边界。
 
+**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `2. 目标` 和 `2.1 非目标`。
+
 ### Step 4: 明确功能性需求
 
 **目标**：让用户说清楚"具体要做哪些功能来达成目标"
@@ -134,6 +200,8 @@ todo_write(merge=false, todos=[
 - "用户/调用方会怎么使用这个功能？"
 
 **结束条件**：用户给出具体的功能列表，AI 复述确认无误。
+
+**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `3.1 功能性需求`。
 
 ### Step 5: 确认非功能性需求
 
@@ -166,48 +234,20 @@ todo_write(merge=false, todos=[
 
 **结束条件**：用户确认关键约束，或明确表示"没有其他约束"。
 
-### Step 6: 生成 spec.md
+**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `3.2 非功能性需求`。
 
-> **重要**：
-> - spec.md 的内容来自用户在对话中的回答 + AI 调研的代码背景
-> - **只填写前三章节**（1. 背景、2. 目标、3. 需求），后续章节由 `workflow-system-design` skill 填写
+### Step 6: 最终确认
 
-**生成前确认**：
-```
-好的，需求澄清完成。我来整理一下：
+**目标**：回顾 spec 前三章节的完整性，确认无遗漏。
 
-请确认以下理解是否正确：
-- 问题：[复述用户说的问题]
-- 功能：[复述用户说的功能]
-- 目标：[复述用户说的目标]
-- 边界：[复述用户说的边界]
-- 约束：[复述用户说的约束]
-
-有需要补充或修改的吗？
-```
-
-**确定文档位置**：
-
-1. 根据功能所属模块确定路径：`docs/design-docs/<module>/<feature>/`
-2. 文件名必须是 `spec.md`（不是 `xxx-spec.md`）
-
-示例：
-- 后端功能 → `docs/design-docs/backend/<feature>/spec.md`
-- 存储功能 → `docs/design-docs/storage/<feature>/spec.md`
-
-**用户确认后**，生成 spec.md：
-
-```bash
-mkdir -p docs/design-docs/<module>/<feature>/
-cp skills/workflow-requirements-clarification/reference/spec_template.md \
-   docs/design-docs/<module>/<feature>/spec.md
-```
-
-使用 `replace_in_file` 填写前三个章节，保留后续章节的空模板结构。
+**操作**：
+1. 读取 spec.md 前三章节内容
+2. 向用户展示摘要，确认无需补充或修改
+3. 如有修改，用 `replace_in_file` 更新对应章节
 
 **结束语**：
 ```
-spec.md 已生成：docs/design-docs/<module>/<feature>/spec.md
+spec.md 前三章节已完成：docs/design-docs/<module>/<feature>/spec.md
 （已填写：1. 背景、2. 目标、3. 需求）
 
 如果准备好了，说"开始设计"进入 system design 阶段。
@@ -223,6 +263,7 @@ spec.md 已生成：docs/design-docs/<module>/<feature>/spec.md
 4. **正确的文件路径**：`docs/design-docs/<module>/<feature>/spec.md`
 5. **禁止生成后续章节**：设计方案由 `workflow-system-design` skill 负责
 6. **必须使用 cp 复制模板**：禁止使用 `write_to_file` 从头创建 spec.md
+7. **实时更新 spec**：每个步骤结束后立即更新对应章节，不要等到最后一次性写入
 
 ## 反模式
 
@@ -230,8 +271,11 @@ spec.md 已生成：docs/design-docs/<module>/<feature>/spec.md
 |------------|-----------|
 | 问用户"现有实现是怎样的" | AI 自己读代码调研 |
 | 用 `write_to_file` 创建 spec.md | **必须用 `cp` 复制模板** |
+| 生成到 `.codebuddy/specs/` | 生成到 `docs/design-docs/` |
+| 文件名 `xxx-spec.md` | 文件名必须是 `spec.md` |
 | 填写设计方案章节 | 只填前三章节 |
 | 一次问多个问题 | 每轮只问一个核心问题 |
+| 所有步骤完成后才写 spec | 每步结束后实时更新对应章节 |
 
 ## 参考资料
 
