@@ -144,29 +144,13 @@ AI：（加载规范，生成建议）
 
 ## 工作流程
 
-### Step 0: 创建 IDE 任务列表
-
-```
-todo_write(merge=false, todos=[
-  {"id": "sd-0", "status": "pending", "content": "Step 0: 代码调研 + 需求摘要"},
-  {"id": "sd-4.1", "status": "pending", "content": "4.1 方案概览"},
-  {"id": "sd-4.2", "status": "pending", "content": "4.2 组件设计"},
-  {"id": "sd-4.3", "status": "pending", "content": "4.3 核心逻辑"},
-  {"id": "sd-4.4", "status": "pending", "content": "4.4 方案优劣"},
-  {"id": "sd-5", "status": "pending", "content": "5. 备选方案"},
-  {"id": "sd-6", "status": "pending", "content": "6. 业界调研"},
-  {"id": "sd-7", "status": "pending", "content": "7. 测试计划"},
-  {"id": "sd-8", "status": "pending", "content": "8. 可观测性 & 运维"}
-])
-```
-
-### Step 1: 代码调研 + 需求摘要（AI 自主完成）
+### Step 0: 代码调研 + 需求摘要（AI 自主完成）
 
 **目标**：理解现有实现 + 确认对需求的理解
 
 **AI 操作**：
 1. 读取 spec.md 的 1-3 章节
-2. 使用 `task` 调用 `codebase-researcher` 子代理深度调研相关代码（模块结构、接口、依赖链、技术约束）
+2. 调用 `codebase-researcher` subagent 深度调研相关代码（模块结构、接口、依赖链、技术约束）
 3. 生成摘要向用户确认
 
 **向用户汇报（必须）**：
@@ -188,7 +172,7 @@ todo_write(merge=false, todos=[
 
 **结束条件**：用户确认理解正确。**必须等用户确认后才能进入设计讨论**。
 
-### Step 2: 开始设计讨论
+### Step 1: 开始设计讨论
 
 ```
 好的，我们现在进入 **系统设计** 阶段，从 **4.1 方案概览** 开始。
@@ -196,7 +180,7 @@ todo_write(merge=false, todos=[
 请描述一下你的整体设计思路。
 ```
 
-### Step 3: 按 section 顺序讨论
+### Step 2: 按 section 顺序讨论
 
 **每轮只讨论一个 section**。详细的 section 引导模式参见 [reference/section-guide.md](reference/section-guide.md)。
 
@@ -207,7 +191,7 @@ AI："4.2.3 数据模型这个 section，你的需求涉及新的数据结构吗
 
 用户跳过时，在 spec.md 标注 `N/A - 本需求不适用`。
 
-### Step 4: 更新 spec.md
+### Step 3: 更新 spec.md
 
 每个 section 完成后：
 1. 复述用户设计内容，确认理解正确

@@ -15,7 +15,7 @@ model: inherit
 
 ## 需加载的 skill
 
-使用 `use_skill` 加载：
+加载以下 skill：
 - `bp-performance-optimization`（必须）
 - 根据项目需要，额外加载相关的编码规范 skill
 

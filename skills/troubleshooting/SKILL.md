@@ -95,7 +95,7 @@ cp skills/troubleshooting/reference/troubleshooting-log-template.md \
 | 复现条件、触发步骤 | 是否间歇性发生 |
 | 代码版本、最近变更 | 完整服务拓扑 |
 
-**代码上下文调研（必须）**：使用 `task` 调用 `codebase-researcher` 子代理调研问题相关的代码上下文，包括：
+**代码上下文调研（必须）**：调用 `codebase-researcher` subagent 调研问题相关的代码上下文，包括：
 - 报错涉及的函数/模块的实现逻辑和调用链
 - 相关数据结构和状态流转
 - 上下游模块的交互方式
@@ -143,7 +143,7 @@ cp skills/troubleshooting/reference/troubleshooting-log-template.md \
 | **禁止假设** | 结论必须基于代码 + log，不得凭经验猜测 |
 | **Iron Law** | 未找到根因，禁止提修复建议 |
 | **禁止缺 log 猜根因** | log 不足时，从代码中找关键 log 并提供 grep 命令，不得猜测 |
-| **代码上下文调研** | 必须使用 `codebase-researcher` 子代理调研问题相关代码 |
+| **代码上下文调研** | 必须调用 `codebase-researcher` subagent 调研问题相关代码 |
 | **实时更新文档** | 每次新进展/新结论必须更新排查记录，同步维护待确认点 |
 | **假设验证** | 让用户验证，不脑补结果 |
 | **3+ 轮规则** | 连续失败则扩大范围 |

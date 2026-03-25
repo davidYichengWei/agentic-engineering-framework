@@ -37,7 +37,7 @@ description: 代码评审。协调 5 个专项 reviewer subagent 对代码进行
 
 ### 3. 并行分派 reviewer
 
-使用 `Task` 工具**并行**调用 reviewer。**必须等待所有 reviewer subagent 返回后才能进入 Step 4**——禁止主 agent 自己产出 finding。
+**并行**调用 reviewer subagent。**必须等待所有 reviewer subagent 返回后才能进入 Step 4**——禁止主 agent 自己产出 finding。
 
 **跳过列表**：调用方可在请求中通过 `skip_reviewers: [name1, name2]` 指定要跳过的 reviewer。未指定时全部调用。
 
@@ -115,7 +115,7 @@ description: 代码评审。协调 5 个专项 reviewer subagent 对代码进行
 
 ### 5. 调用 critic & 输出 Critic 意见
 
-将所有 finding 送 critic 做对抗性验证。使用 `Task` 工具调用 `review-critic`，**必须等待 critic subagent 返回后才能进入 Step 6**——禁止主 agent 自己做对抗性验证：
+将所有 finding 送 critic 做对抗性验证。调用 `review-critic` subagent，**必须等待 critic subagent 返回后才能进入 Step 6**——禁止主 agent 自己做对抗性验证：
 
 ```
 [Issue 列表]

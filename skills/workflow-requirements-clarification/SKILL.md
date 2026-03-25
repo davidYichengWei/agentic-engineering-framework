@@ -81,20 +81,7 @@ description: 需求澄清。只负责明确"要解决什么问题"，生成 spec
 
 ## 工作流程
 
-### Step 0: 创建 IDE 任务列表
-
-```
-todo_write(merge=false, todos=[
-  {"id": "rc-1", "status": "pending", "content": "Step 1: 代码调研（AI 自主完成）"},
-  {"id": "rc-2", "status": "pending", "content": "Step 2: 澄清背景与问题"},
-  {"id": "rc-3", "status": "pending", "content": "Step 3: 明确目标与边界"},
-  {"id": "rc-4", "status": "pending", "content": "Step 4: 明确功能性需求"},
-  {"id": "rc-5", "status": "pending", "content": "Step 5: 确认非功能性需求"},
-  {"id": "rc-6", "status": "pending", "content": "Step 6: 最终确认 spec.md"}
-])
-```
-
-### Step 0.5: 评估复杂度并创建 spec
+### Step 0: 评估复杂度并创建 spec
 
 | 复杂度 | 信号 | 处理方式 |
 |--------|------|----------|
@@ -117,7 +104,7 @@ cp skills/workflow-requirements-clarification/reference/spec_template.md \
 **目标**：理解现有实现，不询问用户
 
 **AI 操作**：
-1. 使用 `task` 调用 `codebase-researcher` 子代理深度调研相关代码（模块结构、接口、依赖关系、数据流）
+1. 调用 `codebase-researcher` subagent 深度调研相关代码（模块结构、接口、依赖关系、数据流）
 2. 识别相关模块、接口、数据结构
 3. 生成现状分析摘要
 
@@ -141,7 +128,7 @@ cp skills/workflow-requirements-clarification/reference/spec_template.md \
 
 **结束条件**：用户确认理解正确。**必须等用户确认后才能进入 Step 2**。
 
-**实时更新 spec**：用户确认后，用 `replace_in_file` 填写 spec.md 的 `1.2 现状分析` 和 `1.3 主要使用场景`。
+**实时更新 spec**：用户确认后，更新 spec.md 的 `1.2 现状分析` 和 `1.3 主要使用场景`。
 
 ### Step 2: 澄清背景与问题
 
@@ -159,7 +146,7 @@ cp skills/workflow-requirements-clarification/reference/spec_template.md \
 
 **结束条件**：用户能清晰回答"要解决什么问题"，AI 复述确认无误。
 
-**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `1.1 问题描述`。
+**实时更新 spec**：确认后，更新 spec.md 的 `1.1 问题描述`。
 
 ### Step 3: 明确目标与边界
 
@@ -181,7 +168,7 @@ cp skills/workflow-requirements-clarification/reference/spec_template.md \
 
 **结束条件**：用户给出明确、可衡量的目标和边界。
 
-**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `2. 目标` 和 `2.1 非目标`。
+**实时更新 spec**：确认后，更新 spec.md 的 `2. 目标` 和 `2.1 非目标`。
 
 ### Step 4: 明确功能性需求
 
@@ -201,7 +188,7 @@ cp skills/workflow-requirements-clarification/reference/spec_template.md \
 
 **结束条件**：用户给出具体的功能列表，AI 复述确认无误。
 
-**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `3.1 功能性需求`。
+**实时更新 spec**：确认后，更新 spec.md 的 `3.1 功能性需求`。
 
 ### Step 5: 确认非功能性需求
 
@@ -234,7 +221,7 @@ cp skills/workflow-requirements-clarification/reference/spec_template.md \
 
 **结束条件**：用户确认关键约束，或明确表示"没有其他约束"。
 
-**实时更新 spec**：确认后，用 `replace_in_file` 填写 spec.md 的 `3.2 非功能性需求`。
+**实时更新 spec**：确认后，更新 spec.md 的 `3.2 非功能性需求`。
 
 ### Step 6: 最终确认
 
@@ -243,7 +230,7 @@ cp skills/workflow-requirements-clarification/reference/spec_template.md \
 **操作**：
 1. 读取 spec.md 前三章节内容
 2. 向用户展示摘要，确认无需补充或修改
-3. 如有修改，用 `replace_in_file` 更新对应章节
+3. 如有修改，更新对应章节内容
 
 **结束语**：
 ```
@@ -262,7 +249,7 @@ spec.md 前三章节已完成：docs/design-docs/<module>/<feature>/spec.md
 3. **只填前三章节**：spec.md 只填写 1. 背景、2. 目标、3. 需求
 4. **正确的文件路径**：`docs/design-docs/<module>/<feature>/spec.md`
 5. **禁止生成后续章节**：设计方案由 `workflow-system-design` skill 负责
-6. **必须使用 cp 复制模板**：禁止使用 `write_to_file` 从头创建 spec.md
+6. **必须使用 cp 复制模板**：禁止从头创建 spec.md
 7. **实时更新 spec**：每个步骤结束后立即更新对应章节，不要等到最后一次性写入
 
 ## 反模式
@@ -270,8 +257,8 @@ spec.md 前三章节已完成：docs/design-docs/<module>/<feature>/spec.md
 | ❌ 错误做法 | ✅ 正确做法 |
 |------------|-----------|
 | 问用户"现有实现是怎样的" | AI 自己读代码调研 |
-| 用 `write_to_file` 创建 spec.md | **必须用 `cp` 复制模板** |
-| 生成到 `.codebuddy/specs/` | 生成到 `docs/design-docs/` |
+| 从头创建 spec.md | **必须用 `cp` 复制模板** |
+| 生成到宿主工具私有目录 | 生成到 `docs/design-docs/` |
 | 文件名 `xxx-spec.md` | 文件名必须是 `spec.md` |
 | 填写设计方案章节 | 只填前三章节 |
 | 一次问多个问题 | 每轮只问一个核心问题 |

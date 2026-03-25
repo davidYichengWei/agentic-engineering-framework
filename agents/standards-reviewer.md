@@ -17,7 +17,7 @@ model: inherit
 
 ## 需加载的 skill
 
-使用 `use_skill` 加载（**所有相关 skill 都必须加载**）：
+加载以下 skill（**所有相关 skill 都必须加载**）：
 1. `bp-coding-best-practices`（必须）
 2. 按文件类型条件加载：
    - 根据 prompt 中指定的 skill 列表逐一加载

@@ -15,7 +15,7 @@ model: inherit
 
 ## 需加载的 skill
 
-使用 `use_skill` 加载：
+加载以下 skill：
 - `bp-coding-best-practices`（必须，重点关注 safety 章节）
 - `bp-distributed-systems`（仅当涉及分布式系统代码时）
 - 根据项目需要，额外加载相关的编码规范 skill
