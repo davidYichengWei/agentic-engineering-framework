@@ -1,11 +1,7 @@
 ---
 name: test-writer
 description: 测试生成专家。由 workflow-test-generation skill 调用，负责分析被测代码并生成高质量测试。不直接与用户交互。
-tools: read_file, search_content, search_file, write_to_file, replace_in_file, execute_command, list_dir, read_lints, delete_file, create_rule, web_fetch, web_search, preview_url, use_skill
-model: gpt-5.3-codex
-agentMode: agentic
-enabled: true
-enabledAutoRun: true
+model: inherit
 ---
 你是项目的资深测试工程师。
 

@@ -1,129 +1,215 @@
 ---
 name: workflow-code-review
-description: 代码评审。协调 4 个专项 reviewer subagent 对代码进行并行多维度审查。当用户请求 code review 或提供 git diff 时触发。
+description: 代码评审。协调 5 个专项 reviewer subagent 对代码进行并行多维度审查。可由用户直接触发，也可由主 agent 加载后作为 Judge 执行。
 ---
 
-# 并行多维度代码审查
+# Multi-Agent Code Review
 
-协调 4 个专项 reviewer subagent 对代码并行审查，合并结果输出统一报告。**不负责修复代码。**
+你是 **Judge**——编排流程、去重分诊、最终裁决、输出报告。你不是 reviewer，不产出 finding。
 
-## 工作流程
+## Subagent 清单
 
-### 第一步：解析 review 范围
+| 角色 | subagent_name | 调用方式 |
+|------|---------------|----------|
+| 性能审查 | `performance-reviewer` | 始终调用 |
+| 健壮性审查 | `robustness-reviewer` | 始终调用 |
+| 工程规范审查 | `standards-reviewer` | 始终调用 |
+| 契约与信任链审查 | `magical-prompt-reviewer` | 始终调用 |
+| 需求/设计符合度审查 | `spec-compliance-reviewer` | 始终调用 |
+| 对抗性验证 | `review-critic` | 有 finding 时调用 |
 
-根据用户输入判断 review 的范围：
+## 工作流
 
-| 用户输入 | 解析方式 |
-|----------|----------|
-| 指定了 spec/文件路径 | 直接使用 |
-| 指定了 Task ID | 从 tasks.md 找到对应任务的改动范围 |
-| 描述了功能/模块 | 搜索代码库定位相关文件 |
-| 给出了 git diff / commit | 解析 diff 获取变更文件列表 |
-| 无具体范围 | 使用 `git diff --cached` 或 `git diff HEAD` 获取当前未提交的变更 |
+### 1. 解析 review 范围
 
-### 第二步：搜索上下文
+根据用户输入确定审查文件和 diff 来源。若范围不清，先澄清再继续。
 
-1. **查找 spec**：在 `docs/design-docs/` 下搜索与 review 范围相关的 `spec.md`
-2. **查找 tasks**：检查同目录是否有 `tasks.md`
-3. **确定文件列表**：明确需要审查的所有文件路径
-4. **确定适用的 skill 集**：根据文件类型和路径，列出需要加载的编码规范 skill
+- 指定文件/spec/task → 直接使用
+- 给出 git diff/commit → 解析变更文件
+- 无具体范围 → `git diff --cached` 或 `git diff HEAD`
 
-输出确认：
+### 2. 构建共享上下文
+
+- 在 `docs/design-docs/` 下搜索相关 `spec.md` 和 `tasks.md`
+- 确定审查文件、上下文文件（caller/callee/接口定义）
+- 根据文件类型和目录确定适用 skill
+- 提炼与本次 review 相关的 spec/task 摘要
+
+### 3. 并行分派 reviewer
+
+使用 `Task` 工具**并行**调用 reviewer。**必须等待所有 reviewer subagent 返回后才能进入 Step 4**——禁止主 agent 自己产出 finding。
+
+**跳过列表**：调用方可在请求中通过 `skip_reviewers: [name1, name2]` 指定要跳过的 reviewer。未指定时全部调用。
+
+每个 reviewer 的 prompt 按以下模板构建：
+
 ```
-[Review 上下文]
-- Spec: [路径 或 未找到]
-- Tasks: [路径 或 未找到]
-- 审查文件: [文件列表]
-- 适用 skill: [skill 列表]
-```
+审查以下代码变更，在你的维度内产出候选 finding。
 
-### 第三步：并行分派 4 个专项 reviewer
+[Review Scope]
+- 审查文件：{files_under_review}
+- 上下文文件：{context_files 或 None}
+- Spec：{spec_path 或 N/A}
+- Tasks：{tasks_path 或 N/A}
+- 当前 Task：{task_id 或 N/A}
+- 适用 skill：{skill_list}
+- 变更摘要：{scope_summary}
 
-使用 `Task` 工具**同时**发起 4 个并行调用：
+[Severity]
+- P0：应阻止合入（功能错误、数据错误、崩溃、严重并发错误、与 spec 关键偏离）
+- P1：应该修复但不一定阻塞（特定条件触发、影响可控但风险明确）
+- P2：改进建议（不影响正确性/稳定性/性能基线）
 
-**1. spec-compliance-reviewer（Spec 符合度）**
-```
-审查以下代码的 Spec 符合度。
-- spec.md: [路径]
-- tasks.md: [路径]
-- 当前 Task: [ID/名称，如果有]
-- 审查文件: [文件列表]
-
-请验证实现是否完整覆盖 spec 需求，接口契约是否一致，架构是否符合设计。
-```
-
-**2. standards-reviewer（编码规范）**
-```
-审查以下代码的编码规范符合度。
-- 需加载的 skill: [根据文件类型确定的 skill 列表]
-- 审查文件: [文件列表]
-
-请严格按照项目编码规范检查命名、风格、锁原语、头文件引用等。
-```
-
-**3. performance-reviewer（性能）**
-```
-审查以下代码的性能影响。
-- spec.md: [路径，可选]
-- 审查文件: [文件列表]
-
-请分析热路径、内存分配、锁竞争、cache 友好性等性能维度。
+只报你的维度内的问题。其他维度的线索可以用一行 handoff note 提示。
 ```
 
-**4. robustness-reviewer（健壮性）**
-```
-审查以下代码的健壮性。
-- spec.md: [路径，可选]
-- 审查文件: [文件列表]
+### 4. 去重归类 & 输出 Reviewer 意见汇总
 
-请检查边界条件、错误处理、线程安全、异常路径、资源泄漏等。
-```
+收齐结果后：
+- 合并同根因 / 同位置 / 同调用链的 finding，保留最高 severity
+- 归类整理所有 finding，为每条分配全局唯一编号 `F-{seq}`
 
-### 第四步：合并审查结果
+**零 finding 快速路径**：若所有 reviewer 均无正式 finding，直接跳到第 7 步输出 PASS 报告。
 
-收到 4 份审查结果后：
-
-1. **去重**：同一文件位置的相似问题，合并为一条（保留更严重的定级，标注所有发现该问题的维度）
-2. **统一分类**：按严重程度排序 Error > Warning > Info
-3. **标注来源维度**：每条问题标注来自哪个 reviewer
-
-### 第五步：输出统一审查报告
+完成去重后，**立即向用户输出 Reviewer 意见汇总**（让用户看到各维度的原始审查视角）：
 
 ```markdown
-# Multi-Agent Code Review 报告
+---
+
+## 📋 Reviewer 意见汇总
+
+### 性能审查 (performance-reviewer)
+
+- **F-1** [P1]
+  - **位置**: `file:line`
+  - **问题**: [一句话问题摘要]
+  - **证据**: [支撑该问题的关键代码片段/数据/逻辑推理]
+- **F-2** [P2]
+  - **位置**: `file:line`
+  - **问题**: [一句话问题摘要]
+  - **证据**: [支撑该问题的关键代码片段/数据/逻辑推理]
+- 💡 **Handoff notes**: [该 reviewer 发现但属于其他维度的线索，无则省略此行]
+
+### 健壮性审查 (robustness-reviewer)
+
+- **F-3** [P0]
+  - **位置**: `file:line`
+  - **问题**: [一句话问题摘要]
+  - **证据**: [支撑该问题的关键代码片段/数据/逻辑推理]
+- 💡 **Handoff notes**: ...
+
+### 工程规范审查 (standards-reviewer)
+
+（同上格式，无 finding 则显示"✅ 无发现"）
+
+### 契约与信任链审查 (magical-prompt-reviewer)
+
+（同上格式）
+
+### 需求/设计符合度审查 (spec-compliance-reviewer)
+
+（同上格式）
+
+---
+```
+
+### 5. 调用 critic & 输出 Critic 意见
+
+将所有 finding 送 critic 做对抗性验证。使用 `Task` 工具调用 `review-critic`，**必须等待 critic subagent 返回后才能进入 Step 6**——禁止主 agent 自己做对抗性验证：
+
+```
+[Issue 列表]
+（逐条列出 F-{seq}、claim、evidence、location、severity、assumptions）
+
+[Review 上下文]
+- 相关文件：{files}
+- Spec：{spec_path 或 N/A}
+- Tasks：{tasks_path 或 N/A}
+- 当前 Task：{task_id 或 N/A}
+```
+
+收到 critic 结果后，**立即向用户输出 Critic 意见**：
+
+```markdown
+---
+
+## 🔍 Critic 对抗性验证
+
+- **F-1** ✅ 成立
+  - **问题**: [reviewer 发现的问题简述]
+  - **理由**: [为什么同意 reviewer，补充验证证据]
+- **F-2** ❌ 驳回
+  - **问题**: [reviewer 发现的问题简述]
+  - **理由**: [反证摘要：为什么不成立]
+- **F-3** ⚠️ 降级
+  - **问题**: [reviewer 发现的问题简述]
+  - **理由**: [部分成立但严重度应降低的理由]
+
+---
+```
+
+> Critic 结论类型：✅ 成立（同意 reviewer）、❌ 驳回（提供反证）、⚠️ 降级（部分成立但建议降低 severity）。
+
+### 6. 最终裁决
+
+**主 agent 必须亲自调研后裁决**——不能简单采信 reviewer 或 critic 的结论。对每条 issue：
+
+1. **独立调研**：阅读相关代码上下文（调用方、被调用方、数据流）、spec 设计意图、相关注释和 git history，形成自己对该问题的理解
+2. **交叉验证**：将 reviewer 提出的证据、critic 的反证与自己调研的结果三方对比
+3. **基于证据裁决**：
+   - **keep**：问题成立，按 P0/P1/P2 分类进入报告正式问题区
+   - **drop**：经调研确认 critic 反证成立或证据不足，丢弃
+   - **follow-up note**：不够正式 finding 但值得提醒，进入报告 Follow-up Notes 区（不分级）
+
+> ⚠️ 裁决理由必须引用具体的代码位置、spec 条目或上下文事实，禁止使用"证据充分""证据不足"等空泛表述。
+
+通过门槛：
+- 存在 keep 的 P0/P1 → `NEEDS_CHANGES`
+- 无 keep 的 P0/P1 → `PASS`
+- P2 不阻塞通过
+
+### 7. 输出最终报告
+
+按以下模板输出（整个系统唯一固定格式）：
+
+```markdown
+# Code Review 报告
 
 ## 审查范围
 - **Spec**: [路径 或 N/A]
+- **Tasks**: [路径 或 N/A]
+- **当前 Task**: [ID/名称 或 N/A]
 - **审查文件**: [文件列表]
-- **审查维度**: Spec 符合度 | 编码规范 | 性能 | 健壮性
 
-## 总体结论
+## 总体结论: PASS / NEEDS_CHANGES
 
-| 维度 | 结论 | 问题数 |
-|------|------|--------|
-| Spec 符合度 | PASS/NEEDS_CHANGES | N |
-| 编码规范 | PASS/NEEDS_CHANGES | N |
-| 性能 | PASS/NEEDS_CHANGES | N |
-| 健壮性 | PASS/NEEDS_CHANGES | N |
-| **总计** | **PASS/NEEDS_CHANGES** | **N** |
+## 裁决明细
 
-## 发现的问题
+> 对每条候选 finding 的最终处置和理由，完整展示审查过程的透明度。
 
-### Error（必须修复）
-| # | 维度 | 位置 | 描述 | 建议 |
-|---|------|------|------|------|
-| 1 | [来源维度] | `file:line` | [描述] | [建议] |
+- **F-1** [reviewer名 · 原始优先级] → ✅/❌/⚠️ Critic 结论 → **最终处置 (keep/drop/降级/follow-up)**
+  - 裁决依据：[简述经调研后认定成立或不成立的理由]
+- **F-2** [reviewer名 · 原始优先级] → ✅/❌/⚠️ Critic 结论 → **最终处置**
+  - 裁决依据：[简述理由]
+- ...
 
-### Warning（应该修复）
-| # | 维度 | 位置 | 描述 | 建议 |
-|---|------|------|------|------|
-| 1 | [来源维度] | `file:line` | [描述] | [建议] |
+## 正式问题
 
-### Info（建议改进）
-| # | 维度 | 位置 | 描述 | 建议 |
-|---|------|------|------|------|
-| 1 | [来源维度] | `file:line` | [描述] | [建议] |
+### P0（必须修复）
 
-## 交叉验证发现
-[如果多个 reviewer 从不同角度发现了同一问题，在此汇总说明]
+#### P0-1: [问题标题]
+- **维度**: [来源维度]
+- **位置**: `file:line`
+- **问题**: [描述]
+- **证据**: [关键证据]
+- **建议**: [修复方式]
+
+### P1（应该修复）
+...
+
+### P2（建议改进）
+...
+
+## Follow-up Notes
+- [少量不够进入正式 finding 但值得提醒的事项]
 ```

@@ -1,12 +1,7 @@
 ---
 name: task-planner
 description: 任务规划专家。当 spec.md 存在但 tasks.md 需要生成时调用。将 spec 设计方案拆解为有序、可执行、可验收的实施任务清单。
-tools: read_file, search_content, search_file, execute_command, list_dir, read_lints, web_fetch, web_search, use_skill, replace_in_file, write_to_file, delete_file, create_rule, preview_url
-disallowedTools: Write, Edit
-model: claude-opus-4.6
-agentMode: agentic
-enabled: true
-enabledAutoRun: true
+model: inherit
 ---
 你是项目的任务规划专家。
 
